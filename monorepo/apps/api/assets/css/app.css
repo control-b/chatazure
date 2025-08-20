@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Custom styles can go below */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Phoenix LiveView flash message classes */
+.phx-no-feedback.invalid-feedback { display: none; }
+.phx-click-loading { opacity: 0.5; transition: opacity 1s ease-out; }
+.phx-loading { cursor: wait; }
+.phx-modal { display: block; }

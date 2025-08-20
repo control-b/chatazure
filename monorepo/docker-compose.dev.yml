@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  # Phoenix API Server
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - MIX_ENV=dev
+      - PORT=4000
+      - COSMOS_ENDPOINT=${COSMOS_ENDPOINT}
+      - COSMOS_KEY=${COSMOS_KEY}
+      - AZURE_STORAGE_ACCOUNT=${AZURE_STORAGE_ACCOUNT}
+      - AZURE_STORAGE_KEY=${AZURE_STORAGE_KEY}
+      - AZURE_TENANT_ID=${AZURE_TENANT_ID}
+      - AZURE_CLIENT_ID=${AZURE_CLIENT_ID}
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key}
+    volumes:
+      - ./apps/api:/app
+      - /app/deps
+      - /app/_build
+    depends_on:
+      - redis
+    networks:
+      - trucking-network
+
+  # Next.js Web Application
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - NEXTAUTH_URL=http://localhost:3000
+      - NEXTAUTH_SECRET=${NEXTAUTH_SECRET:-dev-nextauth-secret}
+      - AZURE_AD_B2C_TENANT_NAME=${AZURE_AD_B2C_TENANT_NAME}
+      - AZURE_AD_B2C_CLIENT_ID=${AZURE_AD_B2C_CLIENT_ID}
+      - AZURE_AD_B2C_CLIENT_SECRET=${AZURE_AD_B2C_CLIENT_SECRET}
+      - AZURE_AD_B2C_PRIMARY_USER_FLOW=${AZURE_AD_B2C_PRIMARY_USER_FLOW}
+      - NEXT_PUBLIC_PHOENIX_WS_URL=ws://localhost:4000/socket
+      - YJS_WS_URL=ws://localhost:4001
+      - API_BASE_URL=http://localhost:4000/api
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - api
+      - yjs
+    networks:
+      - trucking-network
+
+  # Y.js WebSocket Service
+  yjs:
+    build:
+      context: ./apps/yjs
+      dockerfile: Dockerfile
+    ports:
+      - "4001:4001"
+    environment:
+      - NODE_ENV=development
+      - PORT=4001
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=${JWT_SECRET:-dev-secret-key}
+      - API_BASE_URL=http://api:4000/api
+    volumes:
+      - ./apps/yjs:/app
+      - /app/node_modules
+      - /app/dist
+    depends_on:
+      - redis
+    networks:
+      - trucking-network
+
+  # Redis for caching and Y.js persistence
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - trucking-network
+
+  # Development tools
+  mailhog:
+    image: mailhog/mailhog:latest
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    networks:
+      - trucking-network
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  trucking-network:
+    driver: bridge

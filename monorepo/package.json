@@ -1,0 +1,37 @@
+{
+  "name": "trucking-platform",
+  "version": "1.0.0",
+  "description": "Multi-tenant trucking collaboration platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently \"pnpm dev:api\" \"pnpm dev:web\" \"pnpm dev:yjs\"",
+    "dev:api": "cd apps/api && mix phx.server",
+    "dev:web": "cd apps/web && pnpm dev",
+    "dev:yjs": "cd apps/yjs && pnpm dev",
+    "build": "pnpm build:web && pnpm build:yjs",
+    "build:web": "cd apps/web && pnpm build",
+    "build:yjs": "cd apps/yjs && pnpm build",
+    "lint": "pnpm lint:web && pnpm lint:yjs",
+    "lint:web": "cd apps/web && pnpm lint",
+    "lint:yjs": "cd apps/yjs && pnpm lint",
+    "test": "pnpm test:api && pnpm test:web && pnpm test:yjs",
+    "test:api": "cd apps/api && mix test",
+    "test:web": "cd apps/web && pnpm test",
+    "test:yjs": "cd apps/yjs && pnpm test",
+    "seed": "cd apps/api && mix run priv/repo/seeds.exs",
+    "docker:build": "docker-compose build",
+    "docker:up": "docker-compose up -d",
+    "docker:down": "docker-compose down"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=8.0.0"
+  }
+}

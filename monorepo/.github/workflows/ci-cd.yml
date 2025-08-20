@@ -1,0 +1,201 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  AZURE_ENV_NAME: ${{ github.ref == 'refs/heads/main' && 'prod' || 'staging' }}
+  AZURE_LOCATION: eastus
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        app: [api, web, yjs]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (for web and yjs)
+        if: matrix.app != 'api'
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Setup Elixir (for api)
+        if: matrix.app == 'api'
+        uses: erlef/setup-beam@v1
+        with:
+          elixir-version: '1.15'
+          otp-version: '26'
+
+      - name: Install dependencies (web/yjs)
+        if: matrix.app != 'api'
+        run: |
+          cd apps/${{ matrix.app }}
+          npm ci
+
+      - name: Install dependencies (api)
+        if: matrix.app == 'api'
+        run: |
+          cd apps/${{ matrix.app }}
+          mix deps.get
+
+      - name: Lint (web/yjs)
+        if: matrix.app != 'api'
+        run: |
+          cd apps/${{ matrix.app }}
+          npm run lint
+
+      - name: Type check (web/yjs)
+        if: matrix.app != 'api' && matrix.app == 'web'
+        run: |
+          cd apps/${{ matrix.app }}
+          npm run type-check
+
+      - name: Test (api)
+        if: matrix.app == 'api'
+        run: |
+          cd apps/${{ matrix.app }}
+          mix test
+
+      - name: Test (web/yjs)
+        if: matrix.app != 'api'
+        run: |
+          cd apps/${{ matrix.app }}
+          npm run test --if-present
+
+  build-images:
+    needs: lint-and-test
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    strategy:
+      matrix:
+        app: [api, web, yjs]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Azure Container Registry
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.AZURE_CONTAINER_REGISTRY }}.azurecr.io
+          username: ${{ secrets.AZURE_CLIENT_ID }}
+          password: ${{ secrets.AZURE_CLIENT_SECRET }}
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/${{ matrix.app }}
+          file: ./apps/${{ matrix.app }}/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.AZURE_CONTAINER_REGISTRY }}.azurecr.io/trucking-${{ matrix.app }}:latest
+            ${{ secrets.AZURE_CONTAINER_REGISTRY }}.azurecr.io/trucking-${{ matrix.app }}:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy-infrastructure:
+    needs: [lint-and-test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy Bicep template
+        uses: azure/arm-deploy@v1
+        with:
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+          scope: subscription
+          region: ${{ env.AZURE_LOCATION }}
+          template: ./infra/main.bicep
+          parameters: ./infra/main.parameters.json environmentName=${{ env.AZURE_ENV_NAME }} location=${{ env.AZURE_LOCATION }}
+
+  deploy-applications:
+    needs: [build-images, deploy-infrastructure]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    strategy:
+      matrix:
+        app: [api, web, yjs]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Update Container App
+        run: |
+          RG_NAME="trucking-platform-${{ env.AZURE_ENV_NAME }}-rg"
+          APP_NAME="trucking-${{ matrix.app }}-$(az deployment sub show --name main-resources --query 'properties.outputs.resourceToken.value' -o tsv)"
+          IMAGE_NAME="${{ secrets.AZURE_CONTAINER_REGISTRY }}.azurecr.io/trucking-${{ matrix.app }}:${{ github.sha }}"
+          
+          az containerapp update \
+            --name $APP_NAME \
+            --resource-group $RG_NAME \
+            --image $IMAGE_NAME
+
+  health-check:
+    needs: deploy-applications
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    
+    steps:
+      - name: Azure Login
+        uses: azure/login@v1
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Wait for deployment
+        run: sleep 60
+
+      - name: Health check
+        run: |
+          # Get Front Door endpoint
+          RG_NAME="trucking-platform-${{ env.AZURE_ENV_NAME }}-rg"
+          RESOURCE_TOKEN=$(az deployment sub show --name main-resources --query 'properties.outputs.resourceToken.value' -o tsv)
+          FD_ENDPOINT=$(az afd endpoint show --resource-group $RG_NAME --profile-name "trucking-platform-fd-$RESOURCE_TOKEN" --endpoint-name "trucking-platform-endpoint" --query 'hostName' -o tsv)
+          
+          # Test endpoints
+          echo "Testing API health..."
+          curl -f "https://$FD_ENDPOINT/api/health" || exit 1
+          
+          echo "Testing Y.js health..."
+          curl -f "https://$FD_ENDPOINT/yjs/health" || exit 1
+          
+          echo "Testing Web app..."
+          curl -f "https://$FD_ENDPOINT/" || exit 1
+          
+          echo "All health checks passed!"
