@@ -9,11 +9,19 @@ config :trucking_platform, TruckingPlatformWeb.Endpoint,
 config :logger, level: :warning
 
 # Use local defaults for external deps in tests
+# Set environment for conditional application startup
 config :trucking_platform,
-  cosmos_endpoint: System.get_env("COSMOS_ENDPOINT", "http://localhost:8081"),
-  cosmos_key: System.get_env("COSMOS_KEY", "local-key"),
-  jwt_secret: "test-secret",
-  use_cosmos_stub: true
+  env: :test,
+  redis_host: nil,
+  redis_password: nil,
+  # CosmosDB config for tests
+  use_cosmos_stub: true,
+  cosmos_endpoint: "https://localhost:8081",
+  cosmos_primary_key: "test-key",
+  cosmos_database: "trucking-test"
+
+# Disable Oban in test mode
+config :trucking_platform, Oban, testing: :inline
 
 # Disable OTLP exporter in tests
 config :opentelemetry, traces_exporter: :none

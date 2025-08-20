@@ -113,6 +113,17 @@ module containerAppsEnvironment 'container-apps-environment.bicep' = {
   }
 }
 
+// Redis Cache for distributed caching
+module redisCache 'redis-cache.bicep' = {
+  name: 'redis-cache'
+  params: {
+    environmentName: environmentName
+    location: location
+    tags: tags
+    resourceToken: resourceToken
+  }
+}
+
 // Container Apps
 module containerApps 'container-apps.bicep' = {
   name: 'container-apps'
@@ -127,6 +138,7 @@ module containerApps 'container-apps.bicep' = {
   }
   dependsOn: [
     containerRegistry
+    redisCache
   ]
 }
 
@@ -154,3 +166,5 @@ output containerAppsEnvironmentName string = containerAppsEnvironmentName
 output userAssignedIdentityId string = userAssignedIdentity.id
 output applicationInsightsInstrumentationKey string = applicationInsights.properties.InstrumentationKey
 output frontDoorEndpoint string = frontDoor.outputs.frontDoorEndpoint
+output redisHostname string = redisCache.outputs.redisHostname
+output redisName string = redisCache.outputs.redisName

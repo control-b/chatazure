@@ -29,8 +29,11 @@ defmodule TruckingPlatformWeb.Router do
   scope "/api", TruckingPlatformWeb do
     pipe_through :api
 
-    # Health check
+    # Health checks for production deployment
     get "/health", HealthController, :check
+    get "/health/detailed", HealthController, :health
+    get "/ready", HealthController, :ready
+    get "/live", HealthController, :live
 
     # Authentication
     post "/auth/token", AuthController, :token

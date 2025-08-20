@@ -9,12 +9,12 @@ defmodule TruckingPlatformWeb.RoomChannel do
     user_id = socket.assigns.user_id
     org_id = socket.assigns.org_id
 
-    # Verify user has access to this room
+    # Verify user has access to this room (cached)
   # Special-case topic "general"
   effective_room_id = if room_id == "general", do: "general", else: room_id
-  case Room.get(effective_room_id, org_id) do
+  case TruckingPlatform.Cache.get_room(effective_room_id) do
       {:ok, room} ->
-    if room.type == "general" or Room.user_has_access?(room, user_id) do
+    if room["type"] == "general" or Room.user_has_access?(room, user_id) do
           # Track presence
           send(self(), :after_join)
           
@@ -45,8 +45,8 @@ defmodule TruckingPlatformWeb.RoomChannel do
     # Push current presence list
     push(socket, "presence_state", Presence.list(socket))
 
-    # Send recent message history (empty for now since storage is stubbed)
-    case Message.list_by_room(room_id, socket.assigns.org_id, limit: 20) do
+    # Send recent message history (cached)
+    case TruckingPlatform.Cache.get_messages(room_id, 20) do
       {:ok, messages} ->
         push(socket, "message_history", %{messages: Enum.map(messages, &Message.to_broadcast/1)})
       _ -> push(socket, "message_history", %{messages: []})
@@ -81,6 +81,17 @@ defmodule TruckingPlatformWeb.RoomChannel do
 
         case Message.create(message_params) do
           {:ok, message} ->
+            # Invalidate message cache for this room
+            TruckingPlatform.Cache.invalidate_room(room_id)
+            
+            # Queue background broadcast job for high throughput
+            TruckingPlatform.Jobs.broadcast_check_in(%{
+              "room_id" => room_id,
+              "user_id" => user_id,
+              "message_type" => message.type,
+              "timestamp" => DateTime.to_iso8601(message.timestamp)
+            })
+            
             # For file messages, broadcast original string-key payload (test expects exact match)
             # For plain text, broadcast atom-key map with content only (test matches on atom key)
             file_keys = ["file_url", "file_name", "file_size"]

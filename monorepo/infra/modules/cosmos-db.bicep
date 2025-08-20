@@ -19,30 +19,42 @@ resource cosmosDbAccount 'Microsoft.DocumentDB/databaseAccounts@2023-04-15' = {
     databaseAccountOfferType: 'Standard'
     consistencyPolicy: {
       defaultConsistencyLevel: 'Session'
+      maxStalenessPrefix: 10
+      maxIntervalInSeconds: 5
     }
     locations: [
       {
         locationName: location
         failoverPriority: 0
-        isZoneRedundant: false
+        isZoneRedundant: true
+      }
+      {
+        locationName: 'West US 2'
+        failoverPriority: 1
+        isZoneRedundant: true
+      }
+      {
+        locationName: 'North Europe'
+        failoverPriority: 2
+        isZoneRedundant: true
       }
     ]
     capabilities: [
       {
-        name: 'EnableServerless'
+        name: 'EnableZoneRedundancy'
       }
     ]
-    enableAutomaticFailover: false
-    enableMultipleWriteLocations: false
+    enableAutomaticFailover: true
+    enableMultipleWriteLocations: true
     publicNetworkAccess: 'Enabled'
     networkAclBypass: 'AzureServices'
     backupPolicy: {
-      type: 'Periodic'
-      periodicModeProperties: {
-        backupIntervalInMinutes: 1440 // 24 hours
-        backupRetentionIntervalInHours: 720 // 30 days
-        backupStorageRedundancy: 'Local'
-      }
+      type: 'Continuous'
+    }
+    enableFreeTier: false
+    enableAnalyticalStorage: true
+    analyticalStorageConfiguration: {
+      schemaType: 'WellDefined'
     }
   }
 }
@@ -54,18 +66,153 @@ resource cosmosDatabase 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases@2023
     resource: {
       id: 'TruckingPlatform'
     }
+    options: {
+      throughput: 10000 // Provisioned throughput for shared database
+    }
   }
 }
 
-// Containers
+// Containers with optimized partition keys and indexing for scale
 var containers = [
-  { name: 'users', partitionKey: '/orgId' }
-  { name: 'rooms', partitionKey: '/orgId' }
-  { name: 'messages', partitionKey: '/orgId' }
-  { name: 'organizations', partitionKey: '/id' }
-  { name: 'documents', partitionKey: '/orgId' }
-  { name: 'geofences', partitionKey: '/orgId' }
-  { name: 'geo_events', partitionKey: '/orgId' }
+  { 
+    name: 'users'
+    partitionKey: '/orgId'
+    indexingPolicy: {
+      indexingMode: 'Consistent'
+      automatic: true
+      includedPaths: [
+        { path: '/id/?' }
+        { path: '/email/?' }
+        { path: '/orgId/?' }
+        { path: '/roles/*/?' }
+      ]
+      excludedPaths: [
+        { path: '/*' }
+      ]
+    }
+  }
+  { 
+    name: 'rooms'
+    partitionKey: '/orgId'
+    indexingPolicy: {
+      indexingMode: 'Consistent'
+      automatic: true
+      includedPaths: [
+        { path: '/id/?' }
+        { path: '/orgId/?' }
+        { path: '/type/?' }
+        { path: '/participants/*/?' }
+        { path: '/lastActivityAt/?' }
+      ]
+      excludedPaths: [
+        { path: '/*' }
+      ]
+    }
+  }
+  { 
+    name: 'messages'
+    partitionKey: '/roomId'
+    indexingPolicy: {
+      indexingMode: 'Consistent'
+      automatic: true
+      includedPaths: [
+        { path: '/roomId/?' }
+        { path: '/userId/?' }
+        { path: '/timestamp/?' }
+        { path: '/type/?' }
+      ]
+      excludedPaths: [
+        { path: '/*' }
+      ]
+      compositeIndexes: [
+        [
+          { path: '/roomId', order: 'ascending' }
+          { path: '/timestamp', order: 'descending' }
+        ]
+      ]
+    }
+  }
+  { 
+    name: 'organizations'
+    partitionKey: '/id'
+    indexingPolicy: {
+      indexingMode: 'Consistent'
+      automatic: true
+      includedPaths: [
+        { path: '/id/?' }
+        { path: '/name/?' }
+        { path: '/domain/?' }
+      ]
+      excludedPaths: [
+        { path: '/*' }
+      ]
+    }
+  }
+  { 
+    name: 'documents'
+    partitionKey: '/orgId'
+    indexingPolicy: {
+      indexingMode: 'Consistent'
+      automatic: true
+      includedPaths: [
+        { path: '/id/?' }
+        { path: '/orgId/?' }
+        { path: '/ownerId/?' }
+        { path: '/createdAt/?' }
+        { path: '/type/?' }
+      ]
+      excludedPaths: [
+        { path: '/*' }
+      ]
+    }
+  }
+  { 
+    name: 'geofences'
+    partitionKey: '/orgId'
+    indexingPolicy: {
+      indexingMode: 'Consistent'
+      automatic: true
+      includedPaths: [
+        { path: '/id/?' }
+        { path: '/orgId/?' }
+        { path: '/name/?' }
+        { path: '/type/?' }
+        { path: '/coordinates/*/?' }
+      ]
+      excludedPaths: [
+        { path: '/*' }
+      ]
+      spatialIndexes: [
+        {
+          path: '/location/*'
+          types: ['Point', 'Polygon']
+        }
+      ]
+    }
+  }
+  { 
+    name: 'geo_events'
+    partitionKey: '/orgId'
+    indexingPolicy: {
+      indexingMode: 'Consistent'
+      automatic: true
+      includedPaths: [
+        { path: '/orgId/?' }
+        { path: '/userId/?' }
+        { path: '/timestamp/?' }
+        { path: '/eventType/?' }
+      ]
+      excludedPaths: [
+        { path: '/*' }
+      ]
+      compositeIndexes: [
+        [
+          { path: '/orgId', order: 'ascending' }
+          { path: '/timestamp', order: 'descending' }
+        ]
+      ]
+    }
+  }
 ]
 
 resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/containers@2023-04-15' = [for container in containers: {
@@ -77,21 +224,14 @@ resource cosmosContainers 'Microsoft.DocumentDB/databaseAccounts/sqlDatabases/co
       partitionKey: {
         paths: [container.partitionKey]
         kind: 'Hash'
+        version: 2
       }
-      indexingPolicy: {
-        indexingMode: 'Consistent'
-        automatic: true
-        includedPaths: [
-          {
-            path: '/*'
-          }
-        ]
-        excludedPaths: [
-          {
-            path: '/"_etag"/?'
-          }
-        ]
-      }
+      indexingPolicy: container.indexingPolicy
+      defaultTtl: -1 // Enable TTL for automatic cleanup
+      analyticalStorageTtl: 86400 // 24 hours for analytical workloads
+    }
+    options: {
+      throughput: 4000 // Dedicated throughput per container for high scale
     }
   }
 }]

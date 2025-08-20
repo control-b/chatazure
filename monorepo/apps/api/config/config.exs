@@ -31,7 +31,30 @@ config :trucking_platform,
   azure_tenant_id: System.get_env("AZURE_TENANT_ID"),
   azure_client_id: System.get_env("AZURE_CLIENT_ID"),
   azure_policy_name: System.get_env("AZURE_POLICY_NAME", "B2C_1_signupsignin"),
-  jwt_secret: System.get_env("JWT_SECRET", "your-secret-key")
+  jwt_secret: System.get_env("JWT_SECRET", "your-secret-key"),
+  cluster_strategy: System.get_env("CLUSTER_STRATEGY", "gossip")
+
+# High-scale Oban configuration for background jobs
+config :trucking_platform, Oban,
+  repo: nil, # We don't use Ecto, so we'll use Redis
+  engine: Oban.Engines.Basic,
+  queues: [
+    default: 10,
+    webhooks: 25,
+    notifications: 15,
+    broadcasts: 50,
+    cleanup: 5,
+    exports: 3,
+    metrics: 2
+  ],
+  plugins: [
+    Oban.Plugins.Pruner,
+    {Oban.Plugins.Cron, 
+     crontab: [
+       {"*/5 * * * *", TruckingPlatform.Jobs, args: %{type: "metrics_aggregation"}},
+       {"0 2 * * *", TruckingPlatform.Jobs, args: %{type: "daily_cleanup"}}
+     ]}
+  ]
 
 # Configures the endpoint
 config :trucking_platform, TruckingPlatformWeb.Endpoint,

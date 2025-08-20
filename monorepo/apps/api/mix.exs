@@ -56,6 +56,22 @@ defmodule TruckingPlatform.MixProject do
       {:geo, "~> 3.4"},
       {:topo, "~> 1.0"},
   {:swoosh, "~> 1.11"},
+      # Scaling & Performance
+      {:redix, "~> 1.2"},
+      {:poolboy, "~> 1.5"},
+      {:libcluster, "~> 3.3"},
+      {:nebulex, "~> 2.4"},
+      {:decorator, "~> 1.4"},
+      {:phoenix_pubsub_redis, "~> 3.0"},
+      {:oban, "~> 2.15"},
+      # Database connection pooling
+      {:db_connection, "~> 2.5"},
+      {:ecto_sql, "~> 3.10"},
+      {:postgrex, "~> 0.17", optional: true},
+      # Monitoring & Observability
+      {:new_relic_agent, "~> 1.27"},
+      {:prometheus_ex, "~> 3.0"},
+      {:telemetry_metrics_prometheus, "~> 1.1"},
       {:ex_doc, "~> 0.30", only: :dev, runtime: false}
     ]
   end
