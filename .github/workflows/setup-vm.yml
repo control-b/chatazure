@@ -11,10 +11,6 @@ on:
         description: 'Your public IP address for SSH access'
         required: true
         type: string
-      github_token:
-        description: 'GitHub personal access token for Actions runner'
-        required: true
-        type: string
 
 env:
   AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
@@ -62,9 +58,7 @@ jobs:
             environmentName="${{ env.AZURE_ENV_NAME }}-dev" \
             location="${{ env.AZURE_LOCATION }}" \
             sshPublicKey="${{ github.event.inputs.ssh_public_key }}" \
-            allowedSourceIP="${{ github.event.inputs.allowed_source_ip }}" \
-            githubRepo="${{ github.server_url }}/${{ github.repository }}" \
-            githubToken="${{ github.event.inputs.github_token }}"
+            allowedSourceIP="${{ github.event.inputs.allowed_source_ip }}"
 
     - name: Get VM details
       id: vm-details
