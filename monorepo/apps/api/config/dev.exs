@@ -96,4 +96,5 @@ config :trucking_platform,
   cosmos_endpoint: System.get_env("COSMOS_ENDPOINT", "http://localhost:8081"),
   cosmos_key: System.get_env("COSMOS_KEY", "local-key"),
   jwt_secret: System.get_env("JWT_SECRET", "dev-secret-key"),
-  use_cosmos_stub: true
+  use_cosmos_stub: true,
+  enable_oban: false

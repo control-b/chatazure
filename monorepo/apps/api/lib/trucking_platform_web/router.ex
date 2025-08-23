@@ -76,11 +76,45 @@ defmodule TruckingPlatformWeb.Router do
   # Geo events (trip audit)
   get "/trips/:tripId/geoevents", GeoEventController, :index
 
-  # Check-ins
-  post "/checkins", CheckInController, :create
-  get "/trips/:tripId/checkins", CheckInController, :index
+      # Check-ins
+      post "/checkins", CheckInController, :create
+      get "/trips/:tripId/checkins", CheckInController, :index
 
-      # User profile
+      # Mobile API endpoints
+      scope "/mobile" do
+        # Mobile dashboard and trip management
+        get "/dashboard/:userId", MobileApiController, :dashboard
+        get "/trips/active/:userId", MobileApiController, :active_trip
+        post "/trips", MobileApiController, :create_trip
+        
+        # Location and geofencing
+        post "/location", MobileApiController, :update_location
+        get "/geofences/:userId", MobileApiController, :trip_geofences
+        post "/checkin/manual", MobileApiController, :manual_geofence_checkin
+        
+        # Enhanced check-ins
+        post "/checkins", CheckInController, :mobile_checkin
+        get "/checkins/status/:tripId/:userId", CheckInController, :status
+        
+        # Notifications
+        get "/notifications/:userId", MobileApiController, :notifications
+        post "/notifications/read", MobileApiController, :mark_notifications_read
+        
+        # Device registration
+        post "/devices/register", MobileApiController, :register_device
+        
+        # Mobile documents
+        scope "/documents" do
+          get "/:userId", MobileDocumentsController, :index
+          get "/:id/view/:userId", MobileDocumentsController, :show
+          post "/:id/sign", MobileDocumentsController, :sign
+          post "/signature/upload", MobileDocumentsController, :upload_signature
+          get "/:id/download/:userId", MobileDocumentsController, :download_url
+          get "/:id/fields/:userId", MobileDocumentsController, :signature_fields
+          post "/batch_sign", MobileDocumentsController, :batch_sign
+          get "/:id/audit/:userId", MobileDocumentsController, :audit_trail
+        end
+      end      # User profile
       get "/profile", UserController, :profile
       put "/profile", UserController, :update_profile
     end

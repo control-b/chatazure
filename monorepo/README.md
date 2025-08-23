@@ -16,30 +16,35 @@ A production-ready, multi-tenant trucking collaboration platform built with Elix
 ## Features
 
 ### ✅ Real-time Communication
+
 - Multi-room chat with presence tracking
 - File upload and sharing with virus scanning hooks
 - Message history and search
 - Typing indicators and read receipts
 
 ### ✅ Document Collaboration
+
 - Real-time collaborative editing with Y.js CRDT
 - CKEditor 5 integration
 - Document versioning and conflict resolution
 - PDF generation and e-signatures
 
 ### ✅ Geofencing & Tracking
+
 - GPS location tracking with privacy controls
 - Polygon-based geofencing with hysteresis
 - Enter/exit event detection and notifications
 - Rate limiting and debouncing
 
 ### ✅ Multi-tenancy & Security
+
 - Organization-based data isolation
 - Role-based access control (Owner, Dispatcher, Driver, Clerk)
 - Row-level security with Cosmos DB
 - JWT tokens with refresh mechanism
 
 ### ✅ Production Infrastructure
+
 - Blue-green deployments with Container Apps
 - Auto-scaling based on load
 - WebSocket session affinity
@@ -58,6 +63,7 @@ A production-ready, multi-tenant trucking collaboration platform built with Elix
 ### Local Development
 
 1. **Clone and setup**:
+
    ```bash
    git clone <repository-url>
    cd monorepo
@@ -66,17 +72,20 @@ A production-ready, multi-tenant trucking collaboration platform built with Elix
    ```
 
 2. **Install dependencies**:
+
    ```bash
    pnpm install
    cd apps/api && mix deps.get && cd ../..
    ```
 
 3. **Start with Docker Compose**:
+
    ```bash
    pnpm docker:up
    ```
 
 4. **Or start individually**:
+
    ```bash
    # Terminal 1 - Phoenix API
    pnpm dev:api
@@ -96,6 +105,7 @@ A production-ready, multi-tenant trucking collaboration platform built with Elix
 ### Azure Deployment
 
 1. **Setup Azure resources**:
+
    ```bash
    # Login to Azure
    az login
@@ -109,18 +119,19 @@ A production-ready, multi-tenant trucking collaboration platform built with Elix
    ```
 
 2. **Build and push images**:
+
    ```bash
    # Get ACR login server
    ACR_LOGIN_SERVER=$(az acr show --name your-acr-name --query loginServer -o tsv)
-   
+
    # Login to ACR
    az acr login --name your-acr-name
-   
+
    # Build and push images
    docker build -t $ACR_LOGIN_SERVER/trucking-api:latest ./apps/api
    docker build -t $ACR_LOGIN_SERVER/trucking-web:latest ./apps/web
    docker build -t $ACR_LOGIN_SERVER/trucking-yjs:latest ./apps/yjs
-   
+
    docker push $ACR_LOGIN_SERVER/trucking-api:latest
    docker push $ACR_LOGIN_SERVER/trucking-web:latest
    docker push $ACR_LOGIN_SERVER/trucking-yjs:latest
@@ -179,47 +190,55 @@ monorepo/
 ## API Endpoints
 
 ### Authentication
+
 - `POST /api/auth/token` - Get JWT token
 - `POST /api/auth/refresh` - Refresh token
 
 ### Organizations & Rooms
+
 - `GET /api/orgs/:orgId/rooms` - List rooms
 - `POST /api/orgs/:orgId/rooms` - Create room
 - `GET /api/orgs/:orgId/rooms/:roomId/messages` - Get messages
 
 ### File Upload
+
 - `POST /api/uploads/sas` - Generate SAS token
 - `POST /api/uploads/complete` - Complete upload
 
 ### Documents
+
 - `GET /api/docs/:docId` - Get document
 - `POST /api/docs/:docId/sign` - Sign document
 
 ### Geofencing
+
 - `GET /api/orgs/:orgId/geofences` - List geofences
 - `GET /api/geo_events` - Get geo events
 
 ## WebSocket Channels
 
 ### Room Channel (`room:*`)
+
 ```javascript
-channel.join()
-channel.push("new_message", {content: "Hello"})
-channel.push("typing", {typing: true})
-channel.on("new_message", callback)
-channel.on("user_typing", callback)
+channel.join();
+channel.push("new_message", { content: "Hello" });
+channel.push("typing", { typing: true });
+channel.on("new_message", callback);
+channel.on("user_typing", callback);
 ```
 
 ### Geo Channel (`geo:*`)
+
 ```javascript
-channel.push("location_update", {lat: 40.7128, lon: -74.0060})
-channel.on("geo_event", callback)
+channel.push("location_update", { lat: 40.7128, lon: -74.006 });
+channel.on("geo_event", callback);
 ```
 
 ### Presence Channel (`presence:*`)
+
 ```javascript
-channel.on("presence_state", callback)
-channel.on("presence_diff", callback)
+channel.on("presence_state", callback);
+channel.on("presence_diff", callback);
 ```
 
 ## Testing

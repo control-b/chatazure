@@ -1,0 +1,52 @@
+{
+  "expo": {
+    "name": "LogiChat Mobile",
+    "slug": "logichat-mobile",
+    "scheme": "logichat",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#000814"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.controlb.logichat",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "We use your location to enable geofence check-ins at pickup and delivery.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "We use your location to enable background geofence check-ins while you’re driving.",
+        "UIBackgroundModes": ["location"],
+        "NSCameraUsageDescription": "Allow camera to capture document photos and signatures.",
+        "NSUserTrackingUsageDescription": "We do not track you across apps. Tracking is only used if you explicitly enable analytics.",
+        "UIApplicationSupportsIndirectInputEvents": true
+      }
+    },
+    "android": {
+      "package": "com.controlb.logichat",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#000814"
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE"
+      ]
+    },
+    "plugins": [
+      ["expo-location", {"locationAlwaysAndWhenInUsePermission": "Allow background location to enable automatic check-ins when arriving at pickup and delivery."}],
+      "expo-notifications",
+      "expo-secure-store"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "00000000-0000-0000-0000-000000000000"
+      }
+    }
+  }
+}

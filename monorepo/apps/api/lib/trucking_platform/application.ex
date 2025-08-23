@@ -5,6 +5,8 @@ defmodule TruckingPlatform.Application do
 
   @impl true
   def start(_type, _args) do
+    enable_oban = Application.get_env(:trucking_platform, :enable_oban, false)
+
     base_children = [
       TruckingPlatformWeb.Telemetry,
       {DNSCluster, query: Application.get_env(:trucking_platform, :dns_cluster_query) || :ignore},
@@ -18,11 +20,19 @@ defmodule TruckingPlatform.Application do
       {TruckingPlatform.RateLimit.RateLimitSupervisor, []}
     ]
 
+    oban_children = if enable_oban do
+      [{Oban, Application.fetch_env!(:trucking_platform, Oban)}]
+    else
+      []
+    end
+
     production_children = [
       {TruckingPlatform.Cluster, []},
       {DynamicSupervisor, strategy: :one_for_one, name: TruckingPlatform.DynamicSupervisor},
-      # Background job processing
-      {Oban, Application.fetch_env!(:trucking_platform, Oban)},
+      # Background job processing (enabled only when :enable_oban is true)
+      # Oban requires a Repo. In local dev we default it off to avoid crashes.
+      # To enable, set config :trucking_platform, :enable_oban, true and configure Oban.
+    ] ++ oban_children ++ [
       # Database with connection pooling
       {TruckingPlatform.Storage.CosmosDB, []}
     ]

@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import * as React from 'react'
+import * as React from "react";
 
 export function ThemeProvider(props: any) {
-  return <>{props.children}</>
+  return <>{props.children}</>;
 }

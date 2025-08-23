@@ -6,6 +6,7 @@ defmodule TruckingPlatformWeb.UserSocket do
   channel "presence:*", TruckingPlatformWeb.PresenceChannel
   channel "geo:*", TruckingPlatformWeb.GeoChannel
   channel "doc:*", TruckingPlatformWeb.DocChannel
+  channel "mobile:*", TruckingPlatformWeb.MobileChannel
 
   # Socket params are passed from the client and can
   # be used to verify and authenticate a user.

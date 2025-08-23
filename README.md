@@ -14,6 +14,7 @@ A production-ready, multi-tenant trucking collaboration platform built with Elix
 ## Architecture
 
 ### Backend (Phoenix)
+
 - **Language**: Elixir
 - **Framework**: Phoenix 1.7
 - **Database**: Azure Cosmos DB
@@ -22,6 +23,7 @@ A production-ready, multi-tenant trucking collaboration platform built with Elix
 - **Real-time**: WebSockets via Phoenix Channels
 
 ### Frontend (Next.js)
+
 - **Framework**: Next.js 14 with TypeScript
 - **Styling**: Tailwind CSS + shadcn/ui components
 - **Auth**: NextAuth.js with Azure AD B2C
@@ -29,6 +31,7 @@ A production-ready, multi-tenant trucking collaboration platform built with Elix
 - **Documents**: CKEditor 5 with Yjs for collaborative editing
 
 ### Infrastructure
+
 - **Hosting**: Azure Container Apps
 - **CDN**: Azure Front Door
 - **Secrets**: Azure Key Vault
@@ -52,6 +55,7 @@ monorepo/
 ## Quick Start
 
 ### Prerequisites
+
 - Elixir 1.15+ with Phoenix
 - Node.js 18+ with npm
 - Docker (for local development)
@@ -59,12 +63,14 @@ monorepo/
 ### Development Setup
 
 1. **Clone and install dependencies**:
+
    ```bash
    git clone https://github.com/yourusername/ChatAzure.git
    cd ChatAzure
    ```
 
 2. **Backend setup**:
+
    ```bash
    cd monorepo/apps/api
    mix deps.get
@@ -72,6 +78,7 @@ monorepo/
    ```
 
 3. **Frontend setup**:
+
    ```bash
    cd monorepo/apps/web
    npm install
@@ -86,6 +93,7 @@ monorepo/
 ### Environment Configuration
 
 Copy `.env.sample` files and configure:
+
 - Azure AD B2C tenant settings
 - Cosmos DB connection strings
 - Blob Storage account keys
@@ -107,6 +115,7 @@ npm test
 ### Azure Deployment (Recommended)
 
 1. **Set up Azure resources**:
+
    ```bash
    cd infra
    az deployment group create --resource-group rg-chatazure --template-file main.bicep
@@ -125,24 +134,28 @@ See `docs/deployment.md` for detailed deployment instructions.
 ## Features in Detail
 
 ### Real-time Chat
+
 - Phoenix Channels for WebSocket communication
 - Typing indicators and presence tracking
 - File upload to Azure Blob Storage
 - Message history with pagination
 
 ### Geofencing
+
 - Turf.js for client-side geofence validation
 - Server-side location processing with hysteresis
 - Check-in/check-out events with webhook publishing
 - Real-time location updates
 
 ### Document Collaboration
+
 - Yjs CRDT for conflict-free collaborative editing
 - CKEditor 5 integration
 - PDF generation and e-signature workflow
 - Version history and change tracking
 
 ### Multi-tenancy
+
 - Organization-scoped data access
 - Role-based permissions (owner, dispatcher, driver, clerk)
 - JWT-based authentication with Azure AD B2C

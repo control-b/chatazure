@@ -3,6 +3,7 @@
 ## Current Architecture Capacity
 
 **Estimated Current Capacity**: ~100K concurrent users
+
 - Phoenix: 10 containers × 10K connections = 100K concurrent
 - Cosmos DB: Single region, autoscale to 40K RU/s
 - Container Apps: 10 replicas max per service
@@ -12,6 +13,7 @@
 ### 1. Database Tier Optimization
 
 #### Add Redis Caching Layer
+
 ```elixir
 # config/prod.exs
 config :trucking_platform, TruckingPlatform.Cache,
@@ -26,6 +28,7 @@ config :trucking_platform, TruckingPlatform.Cache,
 ```
 
 #### Cosmos DB Optimization
+
 - **Multi-region deployment**: 3-5 regions globally
 - **Partition strategy**: Improve hot partition issues
 - **Read replicas**: Separate read/write workloads
@@ -34,6 +37,7 @@ config :trucking_platform, TruckingPlatform.Cache,
 ### 2. Phoenix Clustering for Real-time
 
 #### Add libcluster Configuration
+
 ```elixir
 # config/prod.exs
 config :libcluster,
@@ -51,6 +55,7 @@ config :libcluster,
 ```
 
 #### Distributed Phoenix PubSub
+
 ```elixir
 # config/prod.exs
 config :trucking_platform, TruckingPlatformWeb.PubSub,
@@ -62,6 +67,7 @@ config :trucking_platform, TruckingPlatformWeb.PubSub,
 ### 3. Container Apps Scaling
 
 #### Updated Bicep Configuration
+
 ```bicep
 scale: {
   minReplicas: 10
@@ -102,11 +108,13 @@ scale: {
 ### 4. Regional Architecture
 
 #### Multi-Region Deployment
+
 - **Primary**: East US
 - **Secondary**: West Europe, Southeast Asia
 - **Disaster Recovery**: Central US
 
 #### CDN and Edge Optimization
+
 - Azure Front Door Premium
 - Static asset caching (24h TTL)
 - Geographic routing
@@ -115,6 +123,7 @@ scale: {
 ### 5. Database Partitioning Strategy
 
 #### Improved Partition Keys
+
 ```elixir
 # Current: Single org_id partition (hot partitions)
 # Improved: Composite partitioning
@@ -124,7 +133,7 @@ defmodule TruckingPlatform.Storage.PartitionStrategy do
     hash = :erlang.phash2({org_id, room_id}, 100)
     "#{org_id}_#{hash}"
   end
-  
+
   def user_partition_key(org_id, user_id) do
     hash = :erlang.phash2(user_id, 50)
     "#{org_id}_users_#{hash}"
@@ -135,23 +144,24 @@ end
 ### 6. Caching Strategy
 
 #### Multi-Level Caching
+
 ```elixir
 defmodule TruckingPlatform.Cache do
   # L1: ETS (local)
   # L2: Redis (distributed)
   # L3: Cosmos DB (persistent)
-  
+
   def get_room(room_id) do
     case :ets.lookup(:room_cache, room_id) do
       [{^room_id, room}] -> {:ok, room}
       [] -> get_from_redis_or_db(room_id)
     end
   end
-  
+
   defp get_from_redis_or_db(room_id) do
     case Redix.command(["GET", "room:#{room_id}"]) do
       {:ok, nil} -> get_from_cosmos_and_cache(room_id)
-      {:ok, data} -> 
+      {:ok, data} ->
         room = Jason.decode!(data)
         :ets.insert(:room_cache, {room_id, room})
         {:ok, room}
@@ -163,6 +173,7 @@ end
 ### 7. Message Queue for Background Jobs
 
 #### Add Azure Service Bus
+
 ```elixir
 # Background processing for:
 # - Webhook publishing
@@ -183,20 +194,23 @@ config :trucking_platform, TruckingPlatform.Jobs,
 ## Performance Targets for 20M DAU
 
 ### Traffic Estimates
+
 - **Peak concurrent users**: 2M (10% of DAU)
 - **Messages per second**: 500K
 - **API requests per second**: 1M
 - **WebSocket connections**: 2M active
 
 ### Resource Requirements
+
 - **Phoenix instances**: 200+ (across regions)
 - **CPU**: 100+ cores per region
-- **Memory**: 500GB+ per region  
+- **Memory**: 500GB+ per region
 - **Cosmos DB**: 100K+ RU/s per region
 - **Redis**: 100GB+ memory cluster
 - **Bandwidth**: 10+ Gbps per region
 
 ### SLA Targets
+
 - **Uptime**: 99.99% (4.32 minutes downtime/month)
 - **API latency**: p95 < 100ms
 - **Message delivery**: p99 < 500ms
@@ -205,6 +219,7 @@ config :trucking_platform, TruckingPlatform.Jobs,
 ## Estimated Costs (Monthly)
 
 ### Current Architecture: ~$2K/month
+
 - Container Apps: $500
 - Cosmos DB: $800
 - Storage: $200
@@ -212,6 +227,7 @@ config :trucking_platform, TruckingPlatform.Jobs,
 - Monitoring: $200
 
 ### Scaled Architecture: ~$50K-100K/month
+
 - Container Apps (multi-region): $25K
 - Cosmos DB (multi-region): $30K
 - Redis Cache: $8K
@@ -223,7 +239,7 @@ config :trucking_platform, TruckingPlatform.Jobs,
 ## Implementation Priority
 
 1. **Phase 1**: Redis caching + connection pooling
-2. **Phase 2**: Phoenix clustering + multi-region deployment  
+2. **Phase 2**: Phoenix clustering + multi-region deployment
 3. **Phase 3**: Database partitioning optimization
 4. **Phase 4**: Advanced autoscaling + monitoring
 5. **Phase 5**: Load testing + performance tuning
