@@ -54,6 +54,7 @@ jobs:
         az deployment group create \
           --resource-group "rg-dev-${{ env.AZURE_ENV_NAME }}" \
           --template-file infra/dev-vm.bicep \
+          --name "dev-vm-${{ github.run_number }}" \
           --parameters \
             environmentName="${{ env.AZURE_ENV_NAME }}-dev" \
             location="${{ env.AZURE_LOCATION }}" \
@@ -65,17 +66,17 @@ jobs:
       run: |
         VM_IP=$(az deployment group show \
           --resource-group "rg-dev-${{ env.AZURE_ENV_NAME }}" \
-          --name dev-vm \
+          --name "dev-vm-${{ github.run_number }}" \
           --query properties.outputs.publicIPAddress.value -o tsv)
         
         VM_FQDN=$(az deployment group show \
           --resource-group "rg-dev-${{ env.AZURE_ENV_NAME }}" \
-          --name dev-vm \
+          --name "dev-vm-${{ github.run_number }}" \
           --query properties.outputs.fqdn.value -o tsv)
         
         VSCODE_URL=$(az deployment group show \
           --resource-group "rg-dev-${{ env.AZURE_ENV_NAME }}" \
-          --name dev-vm \
+          --name "dev-vm-${{ github.run_number }}" \
           --query properties.outputs.vscodeUrl.value -o tsv)
         
         echo "vm_ip=$VM_IP" >> $GITHUB_OUTPUT
