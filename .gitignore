@@ -28,6 +28,21 @@ coverage/
 .env.test.local
 .env.production.local
 
+# Security files
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+secrets.json
+config/secrets.yml
+.secrets/
+credentials.json
+service-account.json
+*-credentials.json
+auth.json
+
 # IDE files
 .vscode/
 .idea/
