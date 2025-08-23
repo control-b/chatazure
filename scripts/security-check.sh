@@ -23,13 +23,13 @@ else
     exit 1
 fi
 
-# Check 2: Look for any tracked .env files
+# Check 2: Look for any tracked .env files (excluding safe templates)
 echo -e "\n📋 Checking for tracked .env files..."
-TRACKED_ENV_FILES=$(git ls-files | grep -E "\.env" || true)
+TRACKED_ENV_FILES=$(git ls-files | grep -E "\.env" | grep -v -E "\.(sample|example|template)$" || true)
 if [ -z "$TRACKED_ENV_FILES" ]; then
-    echo -e "✅ ${GREEN}No .env files are tracked${NC}"
+    echo -e "✅ ${GREEN}No dangerous .env files are tracked${NC}"
 else
-    echo -e "❌ ${RED}Found tracked .env files:${NC}"
+    echo -e "❌ ${RED}Found tracked .env files that may contain secrets:${NC}"
     echo "$TRACKED_ENV_FILES"
     exit 1
 fi
