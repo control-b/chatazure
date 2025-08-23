@@ -20,13 +20,6 @@ param allowedSourceIP string
 @description('VM size for development workload')
 param vmSize string = 'Standard_D8s_v5'
 
-@description('GitHub repository URL for Actions runner setup')
-param githubRepo string = 'https://github.com/Control-B/ChatAzure'
-
-@description('GitHub personal access token for runner registration')
-@secure()
-param githubToken string
-
 // Variables
 var resourceToken = uniqueString(subscription().id, resourceGroup().id, location, environmentName)
 var vmName = 'vm-dev-${resourceToken}'
@@ -209,8 +202,8 @@ resource virtualMachine 'Microsoft.Compute/virtualMachines@2023-07-01' = {
     osProfile: {
       computerName: vmName
       adminUsername: adminUsername
-      disablePasswordAuthentication: true
       linuxConfiguration: {
+        disablePasswordAuthentication: true
         ssh: {
           publicKeys: [
             {
