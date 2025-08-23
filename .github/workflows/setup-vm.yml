@@ -1,0 +1,151 @@
+name: Setup Development VM
+
+on:
+  workflow_dispatch:
+    inputs:
+      ssh_public_key:
+        description: 'SSH public key for VM access'
+        required: true
+        type: string
+      allowed_source_ip:
+        description: 'Your public IP address for SSH access'
+        required: true
+        type: string
+      github_token:
+        description: 'GitHub personal access token for Actions runner'
+        required: true
+        type: string
+
+env:
+  AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+  AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+  AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+  AZURE_ENV_NAME: ${{ vars.AZURE_ENV_NAME || 'trucking-platform' }}
+  AZURE_LOCATION: ${{ vars.AZURE_LOCATION || 'eastus2' }}
+
+jobs:
+  deploy-dev-vm:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        client-id: ${{ env.AZURE_CLIENT_ID }}
+        tenant-id: ${{ env.AZURE_TENANT_ID }}
+        subscription-id: ${{ env.AZURE_SUBSCRIPTION_ID }}
+
+    - name: Install Azure Developer CLI
+      run: |
+        curl -fsSL https://aka.ms/install-azd.sh | bash
+        echo "$HOME/.azd/bin" >> $GITHUB_PATH
+
+    - name: Create resource group for development VM
+      run: |
+        az group create \
+          --name "rg-dev-${{ env.AZURE_ENV_NAME }}" \
+          --location ${{ env.AZURE_LOCATION }} \
+          --tags environment=development purpose=vm
+
+    - name: Deploy development VM
+      run: |
+        az deployment group create \
+          --resource-group "rg-dev-${{ env.AZURE_ENV_NAME }}" \
+          --template-file infra/dev-vm.bicep \
+          --parameters \
+            environmentName="${{ env.AZURE_ENV_NAME }}-dev" \
+            location="${{ env.AZURE_LOCATION }}" \
+            sshPublicKey="${{ github.event.inputs.ssh_public_key }}" \
+            allowedSourceIP="${{ github.event.inputs.allowed_source_ip }}" \
+            githubRepo="${{ github.server_url }}/${{ github.repository }}" \
+            githubToken="${{ github.event.inputs.github_token }}"
+
+    - name: Get VM details
+      id: vm-details
+      run: |
+        VM_IP=$(az deployment group show \
+          --resource-group "rg-dev-${{ env.AZURE_ENV_NAME }}" \
+          --name dev-vm \
+          --query properties.outputs.publicIPAddress.value -o tsv)
+        
+        VM_FQDN=$(az deployment group show \
+          --resource-group "rg-dev-${{ env.AZURE_ENV_NAME }}" \
+          --name dev-vm \
+          --query properties.outputs.fqdn.value -o tsv)
+        
+        VSCODE_URL=$(az deployment group show \
+          --resource-group "rg-dev-${{ env.AZURE_ENV_NAME }}" \
+          --name dev-vm \
+          --query properties.outputs.vscodeUrl.value -o tsv)
+        
+        echo "vm_ip=$VM_IP" >> $GITHUB_OUTPUT
+        echo "vm_fqdn=$VM_FQDN" >> $GITHUB_OUTPUT
+        echo "vscode_url=$VSCODE_URL" >> $GITHUB_OUTPUT
+
+    - name: Setup GitHub Actions runner on VM
+      run: |
+        # Wait for VM to be ready
+        sleep 60
+        
+        # SSH into VM and setup GitHub Actions runner
+        cat > setup_runner.sh << 'EOF'
+        #!/bin/bash
+        cd /home/azureuser/actions-runner
+        
+        # Download and extract GitHub Actions runner
+        curl -o actions-runner-linux-x64-2.311.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.311.0/actions-runner-linux-x64-2.311.0.tar.gz
+        tar xzf actions-runner-linux-x64-2.311.0.tar.gz
+        
+        # Get registration token
+        REGISTRATION_TOKEN=$(curl -s -X POST \
+          -H "Authorization: token ${{ github.event.inputs.github_token }}" \
+          -H "Accept: application/vnd.github.v3+json" \
+          "https://api.github.com/repos/${{ github.repository }}/actions/runners/registration-token" | \
+          jq -r .token)
+        
+        # Configure runner
+        ./config.sh --url https://github.com/${{ github.repository }} \
+          --token $REGISTRATION_TOKEN \
+          --name "dev-vm-runner" \
+          --labels "self-hosted,linux,x64,development" \
+          --work _work \
+          --replace \
+          --unattended
+        
+        # Install and start runner service
+        sudo ./svc.sh install azureuser
+        sudo ./svc.sh start
+        
+        echo "GitHub Actions runner configured and started"
+        EOF
+        
+        # Copy script to VM and execute
+        scp -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa setup_runner.sh azureuser@${{ steps.vm-details.outputs.vm_ip }}:/tmp/
+        ssh -o StrictHostKeyChecking=no -i ~/.ssh/id_rsa azureuser@${{ steps.vm-details.outputs.vm_ip }} 'chmod +x /tmp/setup_runner.sh && /tmp/setup_runner.sh'
+
+    - name: Verify VM setup
+      run: |
+        echo "✅ Development VM deployed successfully!"
+        echo ""
+        echo "🖥️  VM Details:"
+        echo "   IP Address: ${{ steps.vm-details.outputs.vm_ip }}"
+        echo "   FQDN: ${{ steps.vm-details.outputs.vm_fqdn }}"
+        echo ""
+        echo "🔗 Access URLs:"
+        echo "   SSH: ssh azureuser@${{ steps.vm-details.outputs.vm_ip }}"
+        echo "   VS Code Server: ${{ steps.vm-details.outputs.vscode_url }}"
+        echo "   Password: DevPassword123!"
+        echo ""
+        echo "🚀 GitHub Actions runner is configured and ready!"
+        echo ""
+        echo "📋 Next steps:"
+        echo "   1. SSH into the VM to continue development"
+        echo "   2. Clone your repository: git clone https://github.com/${{ github.repository }}.git"
+        echo "   3. Access VS Code Server at the URL above"
+        echo "   4. Push code changes to trigger automated deployments"

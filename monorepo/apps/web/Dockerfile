@@ -15,16 +15,19 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build the application
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm install -g pnpm
+
+# Install dependencies again in builder to ensure all binaries are available
+RUN pnpm install
 RUN pnpm build
 
 # Runner stage
 FROM node:18-alpine AS runner
 WORKDIR /app
 
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
 # Create app user
 RUN addgroup --system --gid 1001 nodejs
@@ -39,7 +42,7 @@ USER nextjs
 
 EXPOSE 3000
 
-ENV PORT 3000
+ENV PORT=3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \

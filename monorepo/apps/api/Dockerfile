@@ -30,9 +30,8 @@ RUN mix deps.get --only $MIX_ENV
 # Dependencies compilation stage
 FROM deps AS compile_deps
 
-# Create config directory and copy minimal config for deps compilation
-RUN mkdir config
-COPY config/config.exs config/
+# Copy all config files for deps compilation (needed for config imports)
+COPY config/ config/
 
 # Compile dependencies with optimizations
 RUN mix deps.compile

@@ -1,0 +1,20 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/refs/heads/main/schemas/v1.0/azure.yaml.json
+
+name: trucking-platform
+infra:
+  provider: bicep
+services:
+  web-frontend:
+    project: monorepo/apps/web
+    host: containerapp
+    language: ts
+    docker:
+      path: Dockerfile
+      context: ./
+  phoenix-backend:
+    project: monorepo/apps/api
+    host: containerapp
+    language: docker
+    docker:
+      path: Dockerfile
+      context: ./
